@@ -63,3 +63,20 @@ def current_branch(repo: Path) -> str | None:
     )
     branch = result.stdout.strip() if result.returncode == 0 else ""
     return branch or None
+
+
+def worktree_for_branch(repo: Path, branch: str) -> Path | None:
+    result = run_git(repo, ["worktree", "list", "--porcelain"], capture=True)
+    records = result.stdout.strip().split("\n\n")
+    branch_ref = f"refs/heads/{branch}"
+    for record in records:
+        worktree: Path | None = None
+        record_branch: str | None = None
+        for line in record.splitlines():
+            if line.startswith("worktree "):
+                worktree = Path(line.removeprefix("worktree ")).resolve()
+            elif line.startswith("branch "):
+                record_branch = line.removeprefix("branch ")
+        if worktree is not None and record_branch == branch_ref:
+            return worktree
+    return None

@@ -15,6 +15,7 @@ from slop_tools import (
     plan_move,
     run_slop,
     run_move,
+    run_teardown,
     untracked_paths_from_cwd,
 )
 
@@ -57,6 +58,23 @@ def init_repo(path):
     (path / "README.md").write_text("test repo\n")
     git(path, "add", "README.md")
     git(path, "commit", "-m", "initial")
+
+
+def init_repo_with_teardown_worktree(root, *, merged=True):
+    repo = root / "projects" / "org" / "example-repo"
+    init_repo(repo)
+    git(repo, "checkout", "-b", "feature")
+    (repo / "feature.txt").write_text("feature\n")
+    git(repo, "add", "feature.txt")
+    git(repo, "commit", "-m", "feature")
+    git(repo, "checkout", "main")
+    if merged:
+        git(repo, "merge", "--no-ff", "feature", "-m", "merge feature")
+
+    worktree = root / "projects" / "org" / "worktrees" / "example-repo" / "feature"
+    worktree.parent.mkdir(parents=True)
+    git(repo, "worktree", "add", str(worktree), "feature")
+    return repo, worktree
 
 
 class SlopTests(unittest.TestCase):
@@ -252,6 +270,76 @@ class SlopTests(unittest.TestCase):
 
             self.assertEqual(result, 0)
             self.assertEqual((root / "slop" / "repo" / "branch" / "scratch.md").read_text(), "temporary\n")
+
+    def test_teardown_removes_merged_worktree_and_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, worktree = init_repo_with_teardown_worktree(root)
+
+            with chdir(worktree):
+                result = run_teardown(["--no-fetch"])
+
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            branch = subprocess.run(
+                ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feature"],
+                check=False,
+            )
+            self.assertNotEqual(branch.returncode, 0)
+
+    def test_teardown_refuses_unmerged_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, worktree = init_repo_with_teardown_worktree(root, merged=False)
+
+            with chdir(worktree), captured_stderr():
+                result = run_teardown(["--no-fetch"])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+            branch = subprocess.run(
+                ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feature"],
+                check=False,
+            )
+            self.assertEqual(branch.returncode, 0)
+
+    def test_teardown_requires_untracked_files_to_be_slopped_first(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_teardown(["--no-fetch"])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+
+    def test_teardown_can_slop_untracked_before_removing_worktree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree):
+                result = run_teardown(["--no-fetch", "--slop-untracked"])
+
+            slopped = root / "projects" / "org" / "slop" / "example-repo" / "feature" / "notes.md"
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            self.assertEqual(slopped.read_text(), "temporary\n")
+
+    def test_teardown_refuses_tracked_changes(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root)
+            (worktree / "feature.txt").write_text("modified\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_teardown(["--no-fetch"])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
 
 
 if __name__ == "__main__":

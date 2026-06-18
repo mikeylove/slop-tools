@@ -53,6 +53,30 @@ git worktree add -b <new-branch> <target-path> <source-branch>
 If the source branch is omitted, the current local branch is used. Remote refs
 such as `origin/main` are intentionally rejected as source branches.
 
+Tear down a merged managed worktree:
+
+```sh
+slop mv --untracked
+slop teardown
+```
+
+`slop teardown` refuses to run unless the current worktree has no tracked
+changes, no untracked files, and its local branch is already merged into local
+`main`. It runs `git fetch --prune` best-effort, but it does not pull, merge, or
+update `main`.
+
+To move untracked files to `slop` as part of teardown:
+
+```sh
+slop teardown --slop-untracked
+```
+
+Use a different local base branch with:
+
+```sh
+slop teardown --base trunk
+```
+
 ## Install
 
 Homebrew-managed Python may reject global `pip install` commands with
@@ -110,6 +134,18 @@ The `worktrees`/`slop` pair can live under any container directory. For example,
 `~/code/worktrees/...` would map to `~/code/slop/...`.
 
 The command refuses to overwrite destinations unless `--force` is provided.
+
+## Worktree teardown
+
+When run from a managed worktree such as:
+
+```text
+/projects/acme/worktrees/example-repo/ipc-updates
+```
+
+`slop teardown` removes that worktree and deletes the local `ipc-updates`
+branch only after verifying that `ipc-updates` is reachable from local `main`.
+If local `main` is stale, update it explicitly and rerun teardown.
 
 ## Worktree creation
 

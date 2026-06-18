@@ -36,6 +36,8 @@ jobs:
 
       - name: Smoke test commands
         run: |
+          slop --help
           slop mv --help
+          slop teardown --help
           init-slop --help
           mv-slop --help
