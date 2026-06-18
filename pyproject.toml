@@ -1,0 +1,10 @@
+[project]
+name = "slop-tools"
+version = "0.1.0"
+description = "Manage development-only files and matching Git worktrees."
+requires-python = ">=3.10"
+
+[project.scripts]
+init-slop = "slop_tools.cli:main"
+mv-slop = "slop_tools.cli:main"
+slop = "slop_tools.cli:main"
