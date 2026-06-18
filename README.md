@@ -17,7 +17,9 @@ it moves the file here:
 
 ## Commands
 
-Move development-only files to the matching `slop` tree:
+### `slop mv`
+
+Move development-only files to the matching `slop` tree.
 
 ```sh
 slop mv path/to/dev-note.md another/file.md
@@ -26,8 +28,6 @@ slop mv --force path/to/dev-note.md
 slop mv --untracked --dry-run
 ```
 
-For compatibility, `mv-slop path/to/dev-note.md` also moves paths.
-
 `--untracked` uses untracked files from the current Git worktree, as reported
 by `git status`, as move inputs. You can combine it with explicit paths:
 
@@ -35,7 +35,11 @@ by `git status`, as move inputs. You can combine it with explicit paths:
 slop mv --untracked docs/extra-note.md
 ```
 
-Create a new local branch and matching worktree:
+For compatibility, `mv-slop path/to/dev-note.md` also moves paths.
+
+### `slop init`
+
+Create a new local branch and matching worktree.
 
 ```sh
 slop init ipc-updates main
@@ -53,7 +57,9 @@ git worktree add -b <new-branch> <target-path> <source-branch>
 If the source branch is omitted, the current local branch is used. Remote refs
 such as `origin/main` are intentionally rejected as source branches.
 
-Tear down a merged managed worktree:
+### `slop teardown`
+
+Tear down a merged managed worktree.
 
 ```sh
 slop mv --untracked
