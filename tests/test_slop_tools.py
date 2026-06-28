@@ -11,8 +11,10 @@ from slop_tools import (
     SlopError,
     init_worktree,
     move,
+    open_worktree,
     plan_init,
     plan_move,
+    plan_open,
     run_slop,
     run_move,
     run_teardown,
@@ -217,6 +219,46 @@ class SlopTests(unittest.TestCase):
             with self.assertRaises(SlopError):
                 plan_init("feature", "origin/main", cwd=repo)
 
+    def test_plans_open_existing_local_branch_from_base_checkout(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+            git(repo, "checkout", "-b", "feature")
+            git(repo, "checkout", "main")
+
+            plan = plan_open("feature", cwd=repo)
+
+            self.assertEqual(plan.repo_name, "example-repo")
+            self.assertEqual(plan.branch, "feature")
+            self.assertEqual(
+                plan.target,
+                (root / "projects" / "org" / "worktrees" / "example-repo" / "feature").resolve(),
+            )
+
+    def test_open_requires_existing_local_branch(self):
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "repo"
+            init_repo(repo)
+
+            with self.assertRaises(SlopError):
+                plan_open("missing", cwd=repo)
+
+    def test_opens_worktree_for_existing_local_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+            git(repo, "checkout", "-b", "feature")
+            git(repo, "checkout", "main")
+
+            plan = plan_open("feature", cwd=repo)
+            open_worktree(plan, fetch=False)
+
+            self.assertTrue((plan.target / ".git").exists())
+            branch = git(plan.target, "branch", "--show-current").stdout.strip()
+            self.assertEqual(branch, "feature")
+
     def test_finds_untracked_files_in_current_worktree(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -270,6 +312,21 @@ class SlopTests(unittest.TestCase):
 
             self.assertEqual(result, 0)
             self.assertEqual((root / "slop" / "repo" / "branch" / "scratch.md").read_text(), "temporary\n")
+
+    def test_slop_dispatches_open_subcommand(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+            git(repo, "checkout", "-b", "feature")
+            git(repo, "checkout", "main")
+
+            with chdir(repo):
+                result = run_slop(["open", "--no-fetch", "feature"])
+
+            worktree = root / "projects" / "org" / "worktrees" / "example-repo" / "feature"
+            self.assertEqual(result, 0)
+            self.assertEqual(git(worktree, "branch", "--show-current").stdout.strip(), "feature")
 
     def test_teardown_removes_merged_worktree_and_branch(self):
         with TemporaryDirectory() as tmp:

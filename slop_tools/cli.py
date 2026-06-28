@@ -6,6 +6,7 @@ from pathlib import Path
 
 from .init import run_init
 from .move import run_move
+from .open import run_open
 from .teardown import run_teardown
 
 
@@ -16,8 +17,8 @@ def run_slop(argv: list[str], *, prog: str = "slop") -> int:
     )
     parser.add_argument(
         "command",
-        choices=["mv", "init", "teardown"],
-        metavar="{mv,init,teardown}",
+        choices=["mv", "init", "open", "teardown"],
+        metavar="{mv,init,open,teardown}",
         help="command to run",
     )
     parser.add_argument("args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
@@ -27,6 +28,8 @@ def run_slop(argv: list[str], *, prog: str = "slop") -> int:
         return run_move(args.args, prog=f"{prog} mv")
     if args.command == "init":
         return run_init(args.args, prog=f"{prog} init")
+    if args.command == "open":
+        return run_open(args.args, prog=f"{prog} open")
     if args.command == "teardown":
         return run_teardown(args.args, prog=f"{prog} teardown")
 

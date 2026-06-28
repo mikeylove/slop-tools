@@ -57,6 +57,24 @@ git worktree add -b <new-branch> <target-path> <source-branch>
 If the source branch is omitted, the current local branch is used. Remote refs
 such as `origin/main` are intentionally rejected as source branches.
 
+### `slop open`
+
+Open an existing local branch in a matching worktree.
+
+```sh
+slop open feature-branch
+```
+
+`slop open` runs `git fetch` best-effort, then checks out the existing local
+branch with:
+
+```sh
+git worktree add <target-path> <branch>
+```
+
+The target path uses the same `worktrees/<repo>/<branch>` layout as
+`slop init`.
+
 ### `slop teardown`
 
 Tear down a merged managed worktree.
@@ -177,4 +195,18 @@ it creates the same target path under the sibling `worktrees` directory:
 
 ```text
 /projects/acme/worktrees/example-repo/ipc-updates
+```
+
+## Worktree opening
+
+When run from a base checkout such as:
+
+```text
+/projects/acme/example-repo
+```
+
+`slop open feature-branch` opens the existing local branch at:
+
+```text
+/projects/acme/worktrees/example-repo/feature-branch
 ```
