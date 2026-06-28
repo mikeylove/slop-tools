@@ -2,12 +2,33 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from .init import run_init
 from .move import run_move
 from .open import run_open
 from .teardown import run_teardown
+
+
+@dataclass(frozen=True)
+class Command:
+    name: str
+    run: Callable[..., int]
+
+
+COMMANDS = (
+    Command("mv", run_move),
+    Command("init", run_init),
+    Command("open", run_open),
+    Command("teardown", run_teardown),
+)
+COMMAND_BY_NAME = {command.name: command for command in COMMANDS}
+ENTRYPOINT_ALIASES = {
+    "init-slop": Command("init-slop", run_init),
+    "mv-slop": Command("mv-slop", run_move),
+}
 
 
 def run_slop(argv: list[str], *, prog: str = "slop") -> int:
@@ -17,32 +38,23 @@ def run_slop(argv: list[str], *, prog: str = "slop") -> int:
     )
     parser.add_argument(
         "command",
-        choices=["mv", "init", "open", "teardown"],
-        metavar="{mv,init,open,teardown}",
+        choices=list(COMMAND_BY_NAME),
+        metavar="{" + ",".join(COMMAND_BY_NAME) + "}",
         help="command to run",
     )
     parser.add_argument("args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
 
     args = parser.parse_args(argv)
-    if args.command == "mv":
-        return run_move(args.args, prog=f"{prog} mv")
-    if args.command == "init":
-        return run_init(args.args, prog=f"{prog} init")
-    if args.command == "open":
-        return run_open(args.args, prog=f"{prog} open")
-    if args.command == "teardown":
-        return run_teardown(args.args, prog=f"{prog} teardown")
-
-    parser.error(f"unknown command: {args.command}")
+    command = COMMAND_BY_NAME[args.command]
+    return command.run(args.args, prog=f"{prog} {command.name}")
 
 
 def main(argv: list[str] | None = None, *, prog: str | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     command_name = Path(sys.argv[0]).name if prog is None else prog
 
-    if command_name == "init-slop":
-        return run_init(args, prog="init-slop")
-    if command_name == "mv-slop":
-        return run_move(args, prog="mv-slop")
+    if command_name in ENTRYPOINT_ALIASES:
+        command = ENTRYPOINT_ALIASES[command_name]
+        return command.run(args, prog=command.name)
 
     return run_slop(args, prog=command_name)

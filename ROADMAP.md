@@ -50,14 +50,6 @@ Consider reshaping `README.md` around:
 The goal is to make the user-facing workflow model clearer as the command set
 grows.
 
-### Introduce CLI Command Registry
-
-Consider deriving CLI choices, metavar text, and dispatch from a single command
-registration point.
-
-This should reduce repeated edits when adding commands such as `open` and
-`close`, while preserving the small command-module structure.
-
 ## Done
 
 ### Extract Managed Workspace Layout
@@ -68,6 +60,11 @@ Shared worktree/slop layout logic now lives in `slop_tools/workspaces.py`.
 
 `slop open <branch>` opens an existing local branch in the managed worktree
 layout.
+
+### Introduce CLI Command Registry
+
+CLI choices, metavar text, and dispatch now derive from a single command
+registration point.
 
 ## Rejected
 
