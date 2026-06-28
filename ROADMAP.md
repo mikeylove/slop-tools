@@ -14,17 +14,14 @@ item will ship.
 
 ## Open
 
-### Extend Workspace Open
+### Extend Workspace Open To Pull Requests
 
-Extend `slop open` beyond existing local branches.
+Extend `slop open` beyond existing local and remote-tracking branches.
 
 Possible sources:
 
-- Remote-tracking branches.
 - Pull request refs.
 - Pull request URLs.
-
-Current constraint: local branches are the first supported source type.
 
 ### Restructure README
 
@@ -61,6 +58,11 @@ Shared worktree/slop layout logic now lives in `slop_tools/workspaces.py`.
 
 `slop open <branch>` opens an existing local branch in the managed worktree
 layout.
+
+### Add Remote Tracking Branch Open
+
+`slop open <remote>/<branch>` creates a local tracking branch and opens it in
+the managed worktree layout.
 
 ### Introduce CLI Command Registry
 

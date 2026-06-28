@@ -7,7 +7,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import SlopError
-from .git import git_toplevel, local_branch_exists, run_git, validate_branch_name
+from .git import (
+    git_toplevel,
+    local_branch_exists,
+    remote_tracking_branch_exists,
+    run_git,
+    validate_branch_name,
+)
 from .workspaces import layout_for_repo
 
 
@@ -17,7 +23,16 @@ class OpenPlan:
     worktrees_root: Path
     repo_name: str
     branch: str
+    source_ref: str
+    create_branch: bool
     target: Path
+
+
+def _local_branch_from_remote_ref(ref: str) -> str | None:
+    if "/" not in ref:
+        return None
+    _, branch = ref.split("/", 1)
+    return branch or None
 
 
 def plan_open(
@@ -32,11 +47,21 @@ def plan_open(
         raise SlopError(f"{start} is not inside a Git repository")
 
     validate_branch_name(repo_root, branch, label="open")
+    source_ref = branch
+    create_branch = False
+    local_branch = branch
     if not local_branch_exists(repo_root, branch):
-        raise SlopError(f"branch must be a local branch: {branch}")
+        local_branch = _local_branch_from_remote_ref(branch)
+        if local_branch is None or not remote_tracking_branch_exists(repo_root, branch):
+            raise SlopError(f"branch must be a local or remote-tracking branch: {branch}")
+        validate_branch_name(repo_root, local_branch, label="local")
+        if local_branch_exists(repo_root, local_branch):
+            raise SlopError(f"local branch already exists: {local_branch}")
+        source_ref = branch
+        create_branch = True
 
     layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
-    target = layout.worktree_path(branch)
+    target = layout.worktree_path(local_branch)
     if target.exists():
         raise SlopError(f"target worktree already exists: {target}")
 
@@ -44,7 +69,9 @@ def plan_open(
         repo_root=repo_root,
         worktrees_root=layout.worktrees_root,
         repo_name=layout.repo_name,
-        branch=branch,
+        branch=local_branch,
+        source_ref=source_ref,
+        create_branch=create_branch,
         target=target,
     )
 
@@ -62,7 +89,21 @@ def open_worktree(
         run_git(plan.repo_root, ["fetch", "--quiet"], check=False, quiet=True)
 
     plan.target.parent.mkdir(parents=True, exist_ok=True)
-    run_git(plan.repo_root, ["worktree", "add", str(plan.target), plan.branch])
+    if plan.create_branch:
+        run_git(
+            plan.repo_root,
+            [
+                "worktree",
+                "add",
+                "--track",
+                "-b",
+                plan.branch,
+                str(plan.target),
+                plan.source_ref,
+            ],
+        )
+    else:
+        run_git(plan.repo_root, ["worktree", "add", str(plan.target), plan.branch])
 
 
 def parse_open_args(argv: list[str], *, prog: str = "slop open") -> argparse.Namespace:
@@ -88,9 +129,14 @@ def parse_open_args(argv: list[str], *, prog: str = "slop open") -> argparse.Nam
 def run_open(argv: list[str], *, prog: str = "slop open") -> int:
     args = parse_open_args(argv, prog=prog)
     try:
+        if not args.dry_run and not args.no_fetch:
+            start = Path.cwd()
+            repo_root = git_toplevel(start.resolve())
+            if repo_root is not None:
+                run_git(repo_root, ["fetch", "--quiet"], check=False, quiet=True)
         plan = plan_open(args.branch, worktrees_name=args.worktrees_name)
         print(f"{plan.branch}\n{plan.target}")
-        open_worktree(plan, dry_run=args.dry_run, fetch=not args.no_fetch)
+        open_worktree(plan, dry_run=args.dry_run, fetch=False)
     except SlopError as exc:
         print(f"{prog}: {exc}", file=sys.stderr)
         return 1

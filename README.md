@@ -56,17 +56,25 @@ such as `origin/main` are intentionally rejected as source branches.
 
 ### `slop open`
 
-Open an existing local branch in a matching worktree.
+Open an existing local or remote-tracking branch in a matching worktree.
 
 ```sh
 slop open feature-branch
+slop open origin/feature-branch
 ```
 
-`slop open` runs `git fetch` best-effort, then checks out the existing local
-branch with:
+`slop open` runs `git fetch` best-effort. For an existing local branch, it
+checks out the branch with:
 
 ```sh
 git worktree add <target-path> <branch>
+```
+
+For a remote-tracking branch, it creates a local tracking branch and checks it
+out with:
+
+```sh
+git worktree add --track -b <local-branch> <target-path> <remote>/<branch>
 ```
 
 The target path uses the same `worktrees/<repo>/<branch>` layout as
@@ -222,6 +230,9 @@ When run from a base checkout such as:
 ```text
 /projects/acme/worktrees/example-repo/feature-branch
 ```
+
+`slop open origin/feature-branch` creates a local `feature-branch` branch that
+tracks `origin/feature-branch` and opens it at the same path.
 
 ## Worktree closing
 

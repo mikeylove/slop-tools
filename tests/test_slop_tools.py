@@ -81,6 +81,25 @@ def init_repo_with_teardown_worktree(root, *, merged=True):
     return repo, worktree
 
 
+def init_repo_with_remote_branch(root):
+    repo = root / "projects" / "org" / "example-repo"
+    init_repo(repo)
+    git(repo, "checkout", "-b", "feature")
+    (repo / "feature.txt").write_text("feature\n")
+    git(repo, "add", "feature.txt")
+    git(repo, "commit", "-m", "feature")
+    git(repo, "checkout", "main")
+
+    remote = root / "remotes" / "example-repo.git"
+    remote.parent.mkdir(parents=True)
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, stdout=subprocess.DEVNULL)
+    git(repo, "remote", "add", "origin", str(remote))
+    git(repo, "push", "-u", "origin", "main", "feature")
+    git(repo, "branch", "-D", "feature")
+    git(repo, "fetch", "origin")
+    return repo
+
+
 class SlopTests(unittest.TestCase):
     def test_maps_nested_project_container(self):
         with TemporaryDirectory() as tmp:
@@ -260,6 +279,35 @@ class SlopTests(unittest.TestCase):
             self.assertTrue((plan.target / ".git").exists())
             branch = git(plan.target, "branch", "--show-current").stdout.strip()
             self.assertEqual(branch, "feature")
+
+    def test_plans_open_remote_tracking_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = init_repo_with_remote_branch(root)
+
+            plan = plan_open("origin/feature", cwd=repo)
+
+            self.assertEqual(plan.repo_name, "example-repo")
+            self.assertEqual(plan.branch, "feature")
+            self.assertEqual(plan.source_ref, "origin/feature")
+            self.assertTrue(plan.create_branch)
+            self.assertEqual(
+                plan.target,
+                (root / "projects" / "org" / "worktrees" / "example-repo" / "feature").resolve(),
+            )
+
+    def test_opens_remote_tracking_branch_as_local_tracking_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = init_repo_with_remote_branch(root)
+
+            plan = plan_open("origin/feature", cwd=repo)
+            open_worktree(plan, fetch=False)
+
+            self.assertTrue((plan.target / ".git").exists())
+            self.assertEqual(git(plan.target, "branch", "--show-current").stdout.strip(), "feature")
+            upstream = git(plan.target, "rev-parse", "--abbrev-ref", "@{upstream}").stdout.strip()
+            self.assertEqual(upstream, "origin/feature")
 
     def test_finds_untracked_files_in_current_worktree(self):
         with TemporaryDirectory() as tmp:

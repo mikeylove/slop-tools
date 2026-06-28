@@ -53,6 +53,16 @@ def local_branch_exists(repo: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
+def remote_tracking_branch_exists(repo: Path, branch: str) -> bool:
+    result = run_git(
+        repo,
+        ["show-ref", "--verify", "--quiet", f"refs/remotes/{branch}"],
+        check=False,
+        quiet=True,
+    )
+    return result.returncode == 0
+
+
 def current_branch(repo: Path) -> str | None:
     result = run_git(
         repo,
