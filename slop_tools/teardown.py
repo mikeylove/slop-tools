@@ -16,7 +16,7 @@ from .git import (
     worktree_for_branch,
 )
 from .move import run_move
-from .paths import ensure_child, named_ancestor
+from .workspaces import managed_workspace_for_repo
 
 
 PROTECTED_BRANCHES = {"main", "master", "trunk", "develop"}
@@ -30,18 +30,6 @@ class TeardownPlan:
     repo_name: str
     branch: str
     base_branch: str
-
-
-def _branch_from_managed_path(
-    repo_root: Path,
-    worktrees_root: Path,
-    *,
-    worktrees_name: str,
-) -> tuple[str, str]:
-    rel = ensure_child(repo_root, worktrees_root)
-    if len(rel.parts) < 2:
-        raise SlopError(f"{repo_root} does not look like {worktrees_name}/<repository>/<branch>")
-    return rel.parts[0], "/".join(rel.parts[1:])
 
 
 def _worktree_status(repo: Path) -> tuple[list[str], list[Path]]:
@@ -84,21 +72,16 @@ def plan_teardown(
     if repo_root is None:
         raise SlopError(f"{start} is not inside a Git repository")
 
-    worktrees_root = named_ancestor(repo_root, worktrees_name)
-    if worktrees_root is None:
+    workspace = managed_workspace_for_repo(repo_root, worktrees_name=worktrees_name)
+    if workspace is None:
         raise SlopError(f"{repo_root} is not inside a {worktrees_name} directory")
 
-    repo_name, managed_branch = _branch_from_managed_path(
-        repo_root,
-        worktrees_root,
-        worktrees_name=worktrees_name,
-    )
     branch = current_branch(repo_root)
     if branch is None:
         raise SlopError("cannot teardown from a detached checkout")
-    if branch != managed_branch:
+    if branch != workspace.branch:
         raise SlopError(
-            f"current branch {branch} does not match managed worktree path {managed_branch}"
+            f"current branch {branch} does not match managed worktree path {workspace.branch}"
         )
     if branch in PROTECTED_BRANCHES:
         raise SlopError(f"refusing to teardown protected branch: {branch}")
@@ -114,8 +97,8 @@ def plan_teardown(
     return TeardownPlan(
         repo_root=repo_root,
         control_repo=control_repo,
-        worktrees_root=worktrees_root,
-        repo_name=repo_name,
+        worktrees_root=workspace.worktrees_root,
+        repo_name=workspace.repo_name,
         branch=branch,
         base_branch=base_branch,
     )

@@ -14,7 +14,7 @@ from .git import (
     run_git,
     validate_branch_name,
 )
-from .paths import ensure_child, named_ancestor
+from .workspaces import layout_for_repo
 
 
 @dataclass(frozen=True)
@@ -25,10 +25,6 @@ class InitPlan:
     new_branch: str
     source_branch: str
     target: Path
-
-
-def _branch_path(branch: str) -> Path:
-    return Path(*branch.split("/"))
 
 
 def plan_init(
@@ -56,26 +52,15 @@ def plan_init(
     if not local_branch_exists(repo_root, source_branch):
         raise SlopError(f"source branch must be a local branch: {source_branch}")
 
-    worktrees_root = named_ancestor(repo_root, worktrees_name)
-    if worktrees_root is None:
-        worktrees_root = repo_root.parent / worktrees_name
-        repo_name = repo_root.name
-    else:
-        rel = ensure_child(repo_root, worktrees_root)
-        if len(rel.parts) < 2:
-            raise SlopError(
-                f"{repo_root} does not look like {worktrees_name}/<repository>/<branch>"
-            )
-        repo_name = rel.parts[0]
-
-    target = worktrees_root / repo_name / _branch_path(new_branch)
+    layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
+    target = layout.worktree_path(new_branch)
     if target.exists():
         raise SlopError(f"target worktree already exists: {target}")
 
     return InitPlan(
         repo_root=repo_root,
-        worktrees_root=worktrees_root,
-        repo_name=repo_name,
+        worktrees_root=layout.worktrees_root,
+        repo_name=layout.repo_name,
         new_branch=new_branch,
         source_branch=source_branch,
         target=target,

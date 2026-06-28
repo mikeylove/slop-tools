@@ -9,6 +9,7 @@ from pathlib import Path
 from .errors import SlopError
 from .git import git_toplevel, run_git
 from .paths import ensure_child, named_ancestor
+from .workspaces import managed_workspace_for_repo
 
 
 @dataclass(frozen=True)
@@ -63,22 +64,23 @@ def _plan_from_git(
     if top is None:
         return None
 
-    worktrees_root = named_ancestor(top, worktrees_name)
-    if worktrees_root is None:
+    workspace = managed_workspace_for_repo(
+        top,
+        worktrees_name=worktrees_name,
+        slop_name=slop_name,
+    )
+    if workspace is None:
         return None
-
-    worktree_key = ensure_child(top, worktrees_root)
-    if len(worktree_key.parts) < 2:
-        raise SlopError(
-            f"{top} does not look like {worktrees_name}/<repository>/<branch>"
-        )
 
     source_rel = ensure_child(source, top)
     if not source_rel.parts:
         raise SlopError("refusing to move an entire worktree root")
 
-    slop_root = worktrees_root.parent / slop_name
-    return MovePlan(source, slop_root / worktree_key / source_rel, worktrees_root)
+    return MovePlan(
+        source,
+        workspace.slop_root / workspace.key / source_rel,
+        workspace.worktrees_root,
+    )
 
 
 def _plan_from_path_shape(
