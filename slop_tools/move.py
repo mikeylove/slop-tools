@@ -132,7 +132,7 @@ def _prune_empty_parents(path: Path, *, stop_at: Path | None) -> None:
         current = current.parent
 
 
-def parse_move_args(argv: list[str], *, prog: str = "mv-slop") -> argparse.Namespace:
+def parse_move_args(argv: list[str], *, prog: str = "slop mv") -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog=prog,
         description="Move files from worktrees/<repo>/<branch> to slop/<repo>/<branch>.",
@@ -159,7 +159,7 @@ def parse_move_args(argv: list[str], *, prog: str = "mv-slop") -> argparse.Names
     return parser.parse_args(argv)
 
 
-def run_move(argv: list[str], *, prog: str = "mv-slop") -> int:
+def run_move(argv: list[str], *, prog: str = "slop mv") -> int:
     args = parse_move_args(argv, prog=prog)
     try:
         paths = list(args.paths)

@@ -93,7 +93,7 @@ def init_worktree(
     )
 
 
-def parse_init_args(argv: list[str], *, prog: str = "init-slop") -> argparse.Namespace:
+def parse_init_args(argv: list[str], *, prog: str = "slop init") -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog=prog,
         description="Create a Git worktree under worktrees/<repo>/<branch>.",
@@ -118,7 +118,7 @@ def parse_init_args(argv: list[str], *, prog: str = "init-slop") -> argparse.Nam
     return parser.parse_args(argv)
 
 
-def run_init(argv: list[str], *, prog: str = "init-slop") -> int:
+def run_init(argv: list[str], *, prog: str = "slop init") -> int:
     args = parse_init_args(argv, prog=prog)
     try:
         plan = plan_init(

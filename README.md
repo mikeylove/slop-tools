@@ -35,8 +35,6 @@ by `git status`, as move inputs. You can combine it with explicit paths:
 slop mv --untracked docs/extra-note.md
 ```
 
-For compatibility, `mv-slop path/to/dev-note.md` also moves paths.
-
 ### `slop init`
 
 Create a new local branch and matching worktree.
@@ -44,10 +42,9 @@ Create a new local branch and matching worktree.
 ```sh
 slop init ipc-updates main
 slop init ipc-updates
-init-slop ipc-updates main
 ```
 
-`init-slop` runs `git fetch` best-effort, then creates the new branch from a
+`slop init` runs `git fetch` best-effort, then creates the new branch from a
 local source branch with:
 
 ```sh
@@ -136,16 +133,7 @@ If you reinstall after changing the entry points, use:
 pipx install --editable --force /path/to/slop-tools
 ```
 
-That installs `init-slop`, `mv-slop`, and `slop` in a dedicated virtual
-environment managed by `pipx`.
-
-If you installed an early version of this checkout when the package was named
-`mv-slop`, remove that old pipx app first:
-
-```sh
-pipx uninstall mv-slop
-pipx install --editable /path/to/slop-tools
-```
+That installs `slop` in a dedicated virtual environment managed by `pipx`.
 
 ## Detection
 
@@ -191,7 +179,7 @@ When run from a managed worktree such as:
 /projects/acme/worktrees/example-repo/main
 ```
 
-`init-slop ipc-updates` creates:
+`slop init ipc-updates` creates:
 
 ```text
 /projects/acme/worktrees/example-repo/ipc-updates

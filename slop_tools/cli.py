@@ -4,7 +4,6 @@ import argparse
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 
 from .close import run_close
 from .init import run_init
@@ -27,10 +26,6 @@ COMMANDS = (
     Command("teardown", run_teardown),
 )
 COMMAND_BY_NAME = {command.name: command for command in COMMANDS}
-ENTRYPOINT_ALIASES = {
-    "init-slop": Command("init-slop", run_init),
-    "mv-slop": Command("mv-slop", run_move),
-}
 
 
 def run_slop(argv: list[str], *, prog: str = "slop") -> int:
@@ -53,10 +48,4 @@ def run_slop(argv: list[str], *, prog: str = "slop") -> int:
 
 def main(argv: list[str] | None = None, *, prog: str | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
-    command_name = Path(sys.argv[0]).name if prog is None else prog
-
-    if command_name in ENTRYPOINT_ALIASES:
-        command = ENTRYPOINT_ALIASES[command_name]
-        return command.run(args, prog=command.name)
-
-    return run_slop(args, prog=command_name)
+    return run_slop(args, prog="slop" if prog is None else prog)
