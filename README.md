@@ -75,6 +75,18 @@ git worktree add <target-path> <branch>
 The target path uses the same `worktrees/<repo>/<branch>` layout as
 `slop init`.
 
+### `slop close`
+
+Close a clean managed worktree without deleting its branch.
+
+```sh
+slop close
+```
+
+`slop close` refuses tracked changes and untracked files. Unlike
+`slop teardown`, it does not require the branch to be merged into a base branch,
+and it does not delete the local branch.
+
 ### `slop teardown`
 
 Tear down a merged managed worktree.
@@ -210,3 +222,14 @@ When run from a base checkout such as:
 ```text
 /projects/acme/worktrees/example-repo/feature-branch
 ```
+
+## Worktree closing
+
+When run from a clean managed worktree such as:
+
+```text
+/projects/acme/worktrees/example-repo/feature-branch
+```
+
+`slop close` removes that worktree and leaves the local `feature-branch` branch
+intact.

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from .close import run_close
 from .init import run_init
 from .move import run_move
 from .open import run_open
@@ -22,6 +23,7 @@ COMMANDS = (
     Command("mv", run_move),
     Command("init", run_init),
     Command("open", run_open),
+    Command("close", run_close),
     Command("teardown", run_teardown),
 )
 COMMAND_BY_NAME = {command.name: command for command in COMMANDS}

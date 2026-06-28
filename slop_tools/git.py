@@ -66,9 +66,25 @@ def current_branch(repo: Path) -> str | None:
 
 
 def worktree_for_branch(repo: Path, branch: str) -> Path | None:
+    branch_ref = f"refs/heads/{branch}"
+    for worktree, record_branch in _worktree_records(repo):
+        if record_branch == branch_ref:
+            return worktree
+    return None
+
+
+def separate_worktree(repo: Path) -> Path | None:
+    repo = repo.resolve()
+    for worktree, _ in _worktree_records(repo):
+        if worktree != repo:
+            return worktree
+    return None
+
+
+def _worktree_records(repo: Path) -> list[tuple[Path, str | None]]:
     result = run_git(repo, ["worktree", "list", "--porcelain"], capture=True)
     records = result.stdout.strip().split("\n\n")
-    branch_ref = f"refs/heads/{branch}"
+    parsed: list[tuple[Path, str | None]] = []
     for record in records:
         worktree: Path | None = None
         record_branch: str | None = None
@@ -77,6 +93,6 @@ def worktree_for_branch(repo: Path, branch: str) -> Path | None:
                 worktree = Path(line.removeprefix("worktree ")).resolve()
             elif line.startswith("branch "):
                 record_branch = line.removeprefix("branch ")
-        if worktree is not None and record_branch == branch_ref:
-            return worktree
-    return None
+        if worktree is not None:
+            parsed.append((worktree, record_branch))
+    return parsed

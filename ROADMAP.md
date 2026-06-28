@@ -14,17 +14,15 @@ item will ship.
 
 ## Open
 
-### Add Disposable Workspace Close
+### Add Explicit Untracked Close Choices
 
-Add a `slop close` lifecycle command for review or disposable worktrees.
+Extend `slop close` with explicit choices for untracked files.
 
 Current direction:
 
 - Refuse tracked changes by default.
 - Require an explicit choice for untracked files, such as `--slop-untracked` or
   `--discard-untracked`.
-- Do not require the branch to be merged into a base branch.
-- Remove the managed worktree when safety checks pass.
 
 ### Extend Workspace Open
 
@@ -65,6 +63,11 @@ layout.
 
 CLI choices, metavar text, and dispatch now derive from a single command
 registration point.
+
+### Add Clean Workspace Close
+
+`slop close` removes a clean managed worktree without requiring a merge check or
+deleting the local branch.
 
 ## Rejected
 

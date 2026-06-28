@@ -12,9 +12,11 @@ from slop_tools import (
     init_worktree,
     move,
     open_worktree,
+    plan_close,
     plan_init,
     plan_move,
     plan_open,
+    run_close,
     run_slop,
     run_move,
     run_teardown,
@@ -327,6 +329,49 @@ class SlopTests(unittest.TestCase):
             worktree = root / "projects" / "org" / "worktrees" / "example-repo" / "feature"
             self.assertEqual(result, 0)
             self.assertEqual(git(worktree, "branch", "--show-current").stdout.strip(), "feature")
+
+    def test_plans_close_current_managed_worktree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, worktree = init_repo_with_teardown_worktree(root, merged=False)
+
+            plan = plan_close(cwd=worktree)
+
+            self.assertEqual(plan.repo_root, worktree.resolve())
+            self.assertEqual(plan.control_repo, repo.resolve())
+            self.assertEqual(plan.branch, "feature")
+
+    def test_close_removes_clean_worktree_without_deleting_branch(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, worktree = init_repo_with_teardown_worktree(root, merged=False)
+
+            with chdir(worktree):
+                result = run_close([])
+
+            branch = subprocess.run(
+                ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feature"],
+                check=False,
+            )
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            self.assertEqual(branch.returncode, 0)
+
+    def test_slop_dispatches_close_subcommand(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo, worktree = init_repo_with_teardown_worktree(root, merged=False)
+
+            with chdir(worktree):
+                result = run_slop(["close"])
+
+            branch = subprocess.run(
+                ["git", "-C", str(repo), "show-ref", "--verify", "--quiet", "refs/heads/feature"],
+                check=False,
+            )
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            self.assertEqual(branch.returncode, 0)
 
     def test_teardown_removes_merged_worktree_and_branch(self):
         with TemporaryDirectory() as tmp:
