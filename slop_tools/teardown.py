@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -15,6 +14,7 @@ from .git import (
     run_git,
     worktree_for_branch,
 )
+from .lifecycle import RemoveWorktreePlan, remove_worktree
 from .move import run_move
 from .status import (
     UNTRACKED_FILES_MESSAGE,
@@ -103,14 +103,15 @@ def teardown(plan: TeardownPlan, *, dry_run: bool = False, fetch: bool = True) -
     validate_teardown_merged(plan)
 
     print(f"{plan.branch} merged into {plan.base_branch}")
-    print(f"remove worktree {plan.repo_root}")
-    print(f"delete branch {plan.branch}")
-    if dry_run:
-        return
-
-    os.chdir(plan.control_repo)
-    run_git(plan.control_repo, ["worktree", "remove", str(plan.repo_root)])
-    run_git(plan.control_repo, ["branch", "-d", plan.branch])
+    remove_worktree(
+        RemoveWorktreePlan(
+            repo_root=plan.repo_root,
+            control_repo=plan.control_repo,
+            branch=plan.branch,
+            delete_branch=True,
+        ),
+        dry_run=dry_run,
+    )
 
 
 def parse_teardown_args(argv: list[str], *, prog: str = "slop teardown") -> argparse.Namespace:
