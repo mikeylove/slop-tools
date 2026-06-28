@@ -373,6 +373,44 @@ class SlopTests(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertEqual(branch.returncode, 0)
 
+    def test_close_requires_untracked_files_to_be_slopped_first(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_close([])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+
+    def test_close_can_slop_untracked_before_removing_worktree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree):
+                result = run_close(["--slop-untracked"])
+
+            slopped = root / "projects" / "org" / "slop" / "example-repo" / "feature" / "notes.md"
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            self.assertEqual(slopped.read_text(), "temporary\n")
+
+    def test_close_refuses_tracked_changes(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            (worktree / "feature.txt").write_text("modified\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_close([])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+
     def test_teardown_removes_merged_worktree_and_branch(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -14,15 +14,14 @@ item will ship.
 
 ## Open
 
-### Add Explicit Untracked Close Choices
+### Add Discard Untracked Close Choice
 
-Extend `slop close` with explicit choices for untracked files.
+Extend `slop close` with an explicit discard choice for untracked files.
 
 Current direction:
 
 - Refuse tracked changes by default.
-- Require an explicit choice for untracked files, such as `--slop-untracked` or
-  `--discard-untracked`.
+- Require `--discard-untracked` before deleting untracked files.
 
 ### Extend Workspace Open
 
@@ -81,6 +80,11 @@ registration point.
 
 `slop close` removes a clean managed worktree without requiring a merge check or
 deleting the local branch.
+
+### Add Slop Untracked Close
+
+`slop close --slop-untracked` moves untracked files to the matching `slop` tree
+before removing the managed worktree.
 
 ## Rejected
 

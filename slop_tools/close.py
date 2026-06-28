@@ -9,7 +9,8 @@ from pathlib import Path
 from .errors import SlopError
 from .git import current_branch, git_toplevel, separate_worktree
 from .lifecycle import RemoveWorktreePlan, remove_worktree
-from .status import validate_clean_worktree, worktree_status
+from .move import run_move
+from .status import validate_clean_worktree, validate_no_tracked_changes, worktree_status
 from .workspaces import managed_workspace_for_repo
 
 
@@ -82,6 +83,11 @@ def parse_close_args(argv: list[str], *, prog: str = "slop close") -> argparse.N
     )
     parser.add_argument("-n", "--dry-run", action="store_true", help="show actions only")
     parser.add_argument(
+        "--slop-untracked",
+        action="store_true",
+        help="move untracked files to slop before closing",
+    )
+    parser.add_argument(
         "--worktrees-name",
         default="worktrees",
         help="worktree directory name (default: worktrees)",
@@ -93,6 +99,22 @@ def run_close(argv: list[str], *, prog: str = "slop close") -> int:
     args = parse_close_args(argv, prog=prog)
     try:
         plan = plan_close(worktrees_name=args.worktrees_name)
+        status = worktree_status(plan.repo_root)
+        validate_no_tracked_changes(status)
+        if status.untracked:
+            if not args.slop_untracked:
+                raise SlopError(UNTRACKED_CLOSE_MESSAGE)
+            move_args = ["--untracked"]
+            if args.dry_run:
+                move_args.append("--dry-run")
+            move_result = run_move(move_args, prog=f"{prog} mv")
+            if move_result != 0:
+                return move_result
+            if not args.dry_run:
+                validate_clean_worktree(
+                    worktree_status(plan.repo_root),
+                    untracked_message=UNTRACKED_CLOSE_MESSAGE,
+                )
         close_worktree(plan, dry_run=args.dry_run)
     except SlopError as exc:
         print(f"{prog}: {exc}", file=sys.stderr)
