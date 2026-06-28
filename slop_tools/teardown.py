@@ -16,6 +16,12 @@ from .git import (
     worktree_for_branch,
 )
 from .move import run_move
+from .status import (
+    UNTRACKED_FILES_MESSAGE,
+    validate_clean_worktree,
+    validate_no_tracked_changes,
+    worktree_status,
+)
 from .workspaces import managed_workspace_for_repo
 
 
@@ -30,35 +36,6 @@ class TeardownPlan:
     repo_name: str
     branch: str
     base_branch: str
-
-
-def _worktree_status(repo: Path) -> tuple[list[str], list[Path]]:
-    result = run_git(
-        repo,
-        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-        capture=True,
-    )
-    tracked: list[str] = []
-    untracked: list[Path] = []
-    entries = result.stdout.split("\0")
-    index = 0
-    while index < len(entries):
-        entry = entries[index]
-        index += 1
-        if not entry:
-            continue
-
-        status = entry[:2]
-        path = entry[3:]
-        if status == "??":
-            untracked.append(repo / path)
-        else:
-            tracked.append(path)
-
-        if "R" in status or "C" in status:
-            index += 1
-
-    return tracked, untracked
 
 
 def plan_teardown(
@@ -105,11 +82,7 @@ def plan_teardown(
 
 
 def validate_teardown_clean(plan: TeardownPlan) -> None:
-    tracked, untracked = _worktree_status(plan.repo_root)
-    if tracked:
-        raise SlopError("tracked changes remain; commit, stash, or discard them first")
-    if untracked:
-        raise SlopError("untracked files remain; run `slop mv --untracked` or use `--slop-untracked`")
+    validate_clean_worktree(worktree_status(plan.repo_root))
 
 
 def validate_teardown_merged(plan: TeardownPlan) -> None:
@@ -173,14 +146,11 @@ def run_teardown(argv: list[str], *, prog: str = "slop teardown") -> int:
     args = parse_teardown_args(argv, prog=prog)
     try:
         plan = plan_teardown(base_branch=args.base, worktrees_name=args.worktrees_name)
-        tracked, untracked = _worktree_status(plan.repo_root)
-        if tracked:
-            raise SlopError("tracked changes remain; commit, stash, or discard them first")
-        if untracked:
+        status = worktree_status(plan.repo_root)
+        validate_no_tracked_changes(status)
+        if status.untracked:
             if not args.slop_untracked:
-                raise SlopError(
-                    "untracked files remain; run `slop mv --untracked` or use `--slop-untracked`"
-                )
+                raise SlopError(UNTRACKED_FILES_MESSAGE)
             move_args = ["--untracked"]
             if args.dry_run:
                 move_args.append("--dry-run")

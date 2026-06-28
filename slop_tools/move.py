@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import SlopError
-from .git import git_toplevel, run_git
+from .git import git_toplevel
 from .paths import ensure_child, named_ancestor
+from .status import untracked_paths
 from .workspaces import managed_workspace_for_repo
 
 
@@ -19,39 +20,12 @@ class MovePlan:
     worktrees_root: Path
 
 
-def _untracked_paths(repo: Path) -> list[Path]:
-    result = run_git(
-        repo,
-        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
-        capture=True,
-    )
-    paths: list[Path] = []
-    entries = result.stdout.split("\0")
-    index = 0
-    while index < len(entries):
-        entry = entries[index]
-        index += 1
-        if not entry:
-            continue
-
-        status = entry[:2]
-        path = entry[3:]
-        if status == "??":
-            paths.append(repo / path)
-            continue
-
-        if "R" in status or "C" in status:
-            index += 1
-
-    return paths
-
-
 def untracked_paths_from_cwd(cwd: str | Path | None = None) -> list[Path]:
     start = Path.cwd() if cwd is None else Path(cwd).expanduser()
     repo_root = git_toplevel(start.resolve())
     if repo_root is None:
         raise SlopError(f"{start} is not inside a Git repository")
-    return _untracked_paths(repo_root)
+    return untracked_paths(repo_root)
 
 
 def _plan_from_git(
