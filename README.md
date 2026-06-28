@@ -78,7 +78,10 @@ git worktree add --track -b <local-branch> <target-path> <remote>/<branch>
 ```
 
 The target path uses the same `worktrees/<repo>/<branch>` layout as
-`slop init`.
+`slop init`. Branch slashes are preserved as nested directories; for example,
+`feature/actual-description` maps to
+`worktrees/<repo>/feature/actual-description`. The command refuses target paths
+that already exist or conflict with a managed worktree parent.
 
 ### `slop close`
 

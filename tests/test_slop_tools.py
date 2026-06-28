@@ -81,10 +81,10 @@ def init_repo_with_teardown_worktree(root, *, merged=True):
     return repo, worktree
 
 
-def init_repo_with_remote_branch(root):
+def init_repo_with_remote_branch(root, *, branch="feature"):
     repo = root / "projects" / "org" / "example-repo"
     init_repo(repo)
-    git(repo, "checkout", "-b", "feature")
+    git(repo, "checkout", "-b", branch)
     (repo / "feature.txt").write_text("feature\n")
     git(repo, "add", "feature.txt")
     git(repo, "commit", "-m", "feature")
@@ -94,8 +94,8 @@ def init_repo_with_remote_branch(root):
     remote.parent.mkdir(parents=True)
     subprocess.run(["git", "init", "--bare", str(remote)], check=True, stdout=subprocess.DEVNULL)
     git(repo, "remote", "add", "origin", str(remote))
-    git(repo, "push", "-u", "origin", "main", "feature")
-    git(repo, "branch", "-D", "feature")
+    git(repo, "push", "-u", "origin", "main", branch)
+    git(repo, "branch", "-D", branch)
     git(repo, "fetch", "origin")
     return repo
 
@@ -308,6 +308,38 @@ class SlopTests(unittest.TestCase):
             self.assertEqual(git(plan.target, "branch", "--show-current").stdout.strip(), "feature")
             upstream = git(plan.target, "rev-parse", "--abbrev-ref", "@{upstream}").stdout.strip()
             self.assertEqual(upstream, "origin/feature")
+
+    def test_plans_open_slashy_remote_tracking_branch_as_nested_path(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = init_repo_with_remote_branch(root, branch="feature/actual-description")
+
+            plan = plan_open("origin/feature/actual-description", cwd=repo)
+
+            self.assertEqual(plan.branch, "feature/actual-description")
+            self.assertEqual(
+                plan.target,
+                (
+                    root
+                    / "projects"
+                    / "org"
+                    / "worktrees"
+                    / "example-repo"
+                    / "feature"
+                    / "actual-description"
+                ).resolve(),
+            )
+
+    def test_open_refuses_nested_branch_when_parent_is_managed_worktree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = init_repo_with_remote_branch(root, branch="feature/actual-description")
+            parent = root / "projects" / "org" / "worktrees" / "example-repo" / "feature"
+            parent.mkdir(parents=True)
+            (parent / ".git").write_text("gitdir: somewhere\n")
+
+            with self.assertRaises(SlopError):
+                plan_open("origin/feature/actual-description", cwd=repo)
 
     def test_finds_untracked_files_in_current_worktree(self):
         with TemporaryDirectory() as tmp:

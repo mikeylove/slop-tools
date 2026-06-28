@@ -61,9 +61,7 @@ def plan_open(
         create_branch = True
 
     layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
-    target = layout.worktree_path(local_branch)
-    if target.exists():
-        raise SlopError(f"target worktree already exists: {target}")
+    target = layout.ensure_worktree_path_available(local_branch)
 
     return OpenPlan(
         repo_root=repo_root,

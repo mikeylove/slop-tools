@@ -16,6 +16,24 @@ class WorkspaceLayout:
     def worktree_path(self, branch: str) -> Path:
         return self.worktrees_root / self.repo_name / branch_path(branch)
 
+    def ensure_worktree_path_available(self, branch: str) -> Path:
+        target = self.worktree_path(branch)
+        if target.exists():
+            raise SlopError(f"target worktree already exists: {target}")
+
+        repo_root = self.worktrees_root / self.repo_name
+        current = target.parent
+        while current != repo_root and current != current.parent:
+            if current.exists() and not current.is_dir():
+                raise SlopError(f"worktree parent path is not a directory: {current}")
+            if (current / ".git").exists():
+                raise SlopError(
+                    f"target worktree path conflicts with managed worktree parent: {current}"
+                )
+            current = current.parent
+
+        return target
+
 
 @dataclass(frozen=True)
 class ManagedWorkspace:

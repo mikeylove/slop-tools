@@ -53,9 +53,7 @@ def plan_init(
         raise SlopError(f"source branch must be a local branch: {source_branch}")
 
     layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
-    target = layout.worktree_path(new_branch)
-    if target.exists():
-        raise SlopError(f"target worktree already exists: {target}")
+    target = layout.ensure_worktree_path_available(new_branch)
 
     return InitPlan(
         repo_root=repo_root,
