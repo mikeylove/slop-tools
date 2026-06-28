@@ -48,6 +48,19 @@ Consider reshaping `README.md` around:
 The goal is to make the user-facing workflow model clearer as the command set
 grows.
 
+### Explore Command Package Auto-Registration
+
+Consider moving command modules into a dedicated package where each module
+exports a consistent `COMMAND` symbol.
+
+Possible direction:
+
+- Scan only the dedicated command package.
+- Fail loudly if a command module exports an invalid shape.
+- Keep legacy executable aliases separate from subcommand discovery.
+- Preserve intentional command ordering rather than relying on filesystem scan
+  order.
+
 ## Done
 
 ### Extract Managed Workspace Layout
