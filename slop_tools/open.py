@@ -107,9 +107,9 @@ def open_worktree(
 def parse_open_args(argv: list[str], *, prog: str = "slop open") -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog=prog,
-        description="Open an existing local branch in a managed Git worktree.",
+        description="Open an existing local or remote-tracking branch in a managed Git worktree.",
     )
-    parser.add_argument("branch", help="existing local branch to open")
+    parser.add_argument("branch", help="existing local or remote-tracking branch to open")
     parser.add_argument("-n", "--dry-run", action="store_true", help="show action only")
     parser.add_argument(
         "--no-fetch",
