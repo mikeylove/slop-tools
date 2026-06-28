@@ -90,6 +90,12 @@ To move untracked files to `slop` as part of close:
 slop close --slop-untracked
 ```
 
+To discard untracked files as part of close:
+
+```sh
+slop close --discard-untracked
+```
+
 ### `slop teardown`
 
 Tear down a merged managed worktree.
@@ -230,3 +236,6 @@ intact.
 
 Use `slop close --slop-untracked` to preserve untracked files in the matching
 `slop` tree before removing the worktree.
+
+Use `slop close --discard-untracked` to delete untracked files before removing
+the worktree.

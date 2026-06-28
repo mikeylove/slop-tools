@@ -399,6 +399,46 @@ class SlopTests(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertEqual(slopped.read_text(), "temporary\n")
 
+    def test_close_can_discard_untracked_before_removing_worktree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            note = worktree / "notes.md"
+            note.write_text("temporary\n")
+
+            with chdir(worktree):
+                result = run_close(["--discard-untracked"])
+
+            slopped = root / "projects" / "org" / "slop" / "example-repo" / "feature" / "notes.md"
+            self.assertEqual(result, 0)
+            self.assertFalse(worktree.exists())
+            self.assertFalse(slopped.exists())
+
+    def test_close_discard_untracked_still_refuses_tracked_changes(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            (worktree / "feature.txt").write_text("modified\n")
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_close(["--discard-untracked"])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+
+    def test_close_untracked_choices_are_mutually_exclusive(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree), captured_stderr():
+                result = run_close(["--slop-untracked", "--discard-untracked"])
+
+            self.assertEqual(result, 1)
+            self.assertTrue(worktree.exists())
+
     def test_close_refuses_tracked_changes(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)

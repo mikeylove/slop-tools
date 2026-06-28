@@ -13,6 +13,7 @@ class RemoveWorktreePlan:
     control_repo: Path
     branch: str
     delete_branch: bool = False
+    force: bool = False
 
 
 def remove_worktree(plan: RemoveWorktreePlan, *, dry_run: bool = False) -> None:
@@ -23,6 +24,10 @@ def remove_worktree(plan: RemoveWorktreePlan, *, dry_run: bool = False) -> None:
         return
 
     os.chdir(plan.control_repo)
-    run_git(plan.control_repo, ["worktree", "remove", str(plan.repo_root)])
+    remove_args = ["worktree", "remove"]
+    if plan.force:
+        remove_args.append("--force")
+    remove_args.append(str(plan.repo_root))
+    run_git(plan.control_repo, remove_args)
     if plan.delete_branch:
         run_git(plan.control_repo, ["branch", "-d", plan.branch])

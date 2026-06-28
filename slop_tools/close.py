@@ -66,11 +66,21 @@ def close_worktree(plan: ClosePlan, *, dry_run: bool = False) -> None:
         worktree_status(plan.repo_root),
         untracked_message=UNTRACKED_CLOSE_MESSAGE,
     )
+    remove_close_worktree(plan, dry_run=dry_run)
+
+
+def remove_close_worktree(
+    plan: ClosePlan,
+    *,
+    dry_run: bool = False,
+    force: bool = False,
+) -> None:
     remove_worktree(
         RemoveWorktreePlan(
             repo_root=plan.repo_root,
             control_repo=plan.control_repo,
             branch=plan.branch,
+            force=force,
         ),
         dry_run=dry_run,
     )
@@ -88,6 +98,11 @@ def parse_close_args(argv: list[str], *, prog: str = "slop close") -> argparse.N
         help="move untracked files to slop before closing",
     )
     parser.add_argument(
+        "--discard-untracked",
+        action="store_true",
+        help="discard untracked files before closing",
+    )
+    parser.add_argument(
         "--worktrees-name",
         default="worktrees",
         help="worktree directory name (default: worktrees)",
@@ -98,10 +113,15 @@ def parse_close_args(argv: list[str], *, prog: str = "slop close") -> argparse.N
 def run_close(argv: list[str], *, prog: str = "slop close") -> int:
     args = parse_close_args(argv, prog=prog)
     try:
+        if args.slop_untracked and args.discard_untracked:
+            raise SlopError("choose only one of `--slop-untracked` or `--discard-untracked`")
         plan = plan_close(worktrees_name=args.worktrees_name)
         status = worktree_status(plan.repo_root)
         validate_no_tracked_changes(status)
         if status.untracked:
+            if args.discard_untracked:
+                remove_close_worktree(plan, dry_run=args.dry_run, force=True)
+                return 0
             if not args.slop_untracked:
                 raise SlopError(UNTRACKED_CLOSE_MESSAGE)
             move_args = ["--untracked"]
@@ -115,7 +135,7 @@ def run_close(argv: list[str], *, prog: str = "slop close") -> int:
                     worktree_status(plan.repo_root),
                     untracked_message=UNTRACKED_CLOSE_MESSAGE,
                 )
-        close_worktree(plan, dry_run=args.dry_run)
+        remove_close_worktree(plan, dry_run=args.dry_run)
     except SlopError as exc:
         print(f"{prog}: {exc}", file=sys.stderr)
         return 1
