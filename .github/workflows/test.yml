@@ -38,6 +38,7 @@ jobs:
         run: |
           slop --help
           slop mv --help
+          slop init --help
+          slop open --help
+          slop close --help
           slop teardown --help
-          init-slop --help
-          mv-slop --help
