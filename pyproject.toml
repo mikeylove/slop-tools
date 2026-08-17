@@ -6,3 +6,6 @@ requires-python = ">=3.10"
 
 [project.scripts]
 slop = "slop_tools.cli:main"
+
+[tool.setuptools]
+packages = ["slop_tools"]
