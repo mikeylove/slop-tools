@@ -244,6 +244,25 @@ pipx install --editable --force /path/to/slop-tools
 
 That installs `slop` in a dedicated virtual environment managed by `pipx`.
 
+## Claude Code Skill
+
+[`skills/slop/`](skills/slop/) contains a Claude Code skill that teaches
+Claude to drive `slop` for worktree and dev-file tasks. Install it by copying
+it into your personal skills directory:
+
+```sh
+cp -r skills/slop ~/.claude/skills/slop
+```
+
+Or symlink it instead, so the skill stays up to date with the repo:
+
+```sh
+ln -s "$(pwd)/skills/slop" ~/.claude/skills/slop
+```
+
+The bundled `evals/evals.json` holds the behavioral test cases used to
+validate the skill against baseline (no-skill) runs.
+
 ## Details
 
 For existing paths inside Git repositories, the tool asks Git for the worktree

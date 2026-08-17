@@ -1,0 +1,45 @@
+{
+  "skill_name": "slop",
+  "notes": "In prompts, <container> is replaced per-run with that run's sandbox container path. Each sandbox is a git workspace: <container>/demo-repo primary checkout, plus managed worktrees where noted.",
+  "evals": [
+    {
+      "id": 0,
+      "name": "init-feature-worktree",
+      "prompt": "I'm working in <container>/demo-repo. I want to start on a new feature (colored speech markers) without touching my current checkout \u2014 set up a worktree for a new branch called marker-colors based on main, and tell me where it is.",
+      "expected_output": "A worktree for new branch marker-colors at <container>/worktrees/demo-repo/marker-colors (via `slop init marker-colors main`), primary checkout left untouched on main.",
+      "files": [],
+      "assertions": [
+        "A git worktree checked out to branch marker-colors exists somewhere in the sandbox",
+        "The worktree is at the managed path container/worktrees/demo-repo/marker-colors",
+        "Branch marker-colors is based on main (merge-base equals main's tip)",
+        "The primary checkout is untouched: still on main with a clean status"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "close-review-keep-notes",
+      "prompt": "I've been reviewing the fix-parser branch in the worktree at <container>/worktrees/demo-repo/fix-parser and I'm done for now. Clean up the worktree \u2014 but keep the branch around in case I come back to it, and whatever you do don't lose my review-notes.md.",
+      "expected_output": "Worktree removed via `slop close --slop-untracked`; branch fix-parser still exists; review-notes.md preserved at <container>/slop/demo-repo/fix-parser/review-notes.md.",
+      "files": [],
+      "assertions": [
+        "The fix-parser worktree is gone: directory removed and no longer listed by git worktree list",
+        "Local branch fix-parser still exists",
+        "review-notes.md survives somewhere in the sandbox with its original content",
+        "review-notes.md is at the managed slop path container/slop/demo-repo/fix-parser/review-notes.md"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "slop-mv-untracked",
+      "prompt": "In my worktree at <container>/worktrees/demo-repo/marker-colors I've got some dev-only junk \u2014 scripts/probe-quotes.lua and notes/debug.md \u2014 that I don't want to commit but also don't want to delete. Get them out of the repo but keep them somewhere organized where I can find them again.",
+      "expected_output": "Files moved via `slop mv` (or `slop mv --untracked`) to <container>/slop/demo-repo/marker-colors/scripts/probe-quotes.lua and .../notes/debug.md, contents intact, worktree left clean.",
+      "files": [],
+      "assertions": [
+        "Neither scripts/probe-quotes.lua nor notes/debug.md remains inside the worktree",
+        "Both files survive somewhere in the sandbox with their original content",
+        "Both files are in the managed slop tree at container/slop/demo-repo/marker-colors/ preserving their relative paths",
+        "The worktree is still a valid git worktree on marker-colors with a clean status"
+      ]
+    }
+  ]
+}
