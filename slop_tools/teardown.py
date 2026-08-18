@@ -14,7 +14,7 @@ from .git import (
     run_git,
     worktree_for_branch,
 )
-from .lifecycle import RemoveWorktreePlan, remove_worktree
+from .lifecycle import RemoveWorktreePlan, prune_empty_slop_dir, remove_worktree
 from .move import run_move
 from .status import (
     UNTRACKED_FILES_MESSAGE,
@@ -33,9 +33,11 @@ class TeardownPlan:
     repo_root: Path
     control_repo: Path
     worktrees_root: Path
+    slop_root: Path
     repo_name: str
     branch: str
     base_branch: str
+    slop_dir: Path
 
 
 def plan_teardown(
@@ -43,13 +45,18 @@ def plan_teardown(
     cwd: str | Path | None = None,
     base_branch: str = "main",
     worktrees_name: str = "worktrees",
+    slop_name: str = "slop",
 ) -> TeardownPlan:
     start = Path.cwd() if cwd is None else Path(cwd).expanduser()
     repo_root = git_toplevel(start.resolve())
     if repo_root is None:
         raise SlopError(f"{start} is not inside a Git repository")
 
-    workspace = managed_workspace_for_repo(repo_root, worktrees_name=worktrees_name)
+    workspace = managed_workspace_for_repo(
+        repo_root,
+        worktrees_name=worktrees_name,
+        slop_name=slop_name,
+    )
     if workspace is None:
         raise SlopError(f"{repo_root} is not inside a {worktrees_name} directory")
 
@@ -75,9 +82,11 @@ def plan_teardown(
         repo_root=repo_root,
         control_repo=control_repo,
         worktrees_root=workspace.worktrees_root,
+        slop_root=workspace.slop_root,
         repo_name=workspace.repo_name,
         branch=branch,
         base_branch=base_branch,
+        slop_dir=workspace.slop_dir,
     )
 
 
@@ -112,6 +121,7 @@ def teardown(plan: TeardownPlan, *, dry_run: bool = False, fetch: bool = True) -
         ),
         dry_run=dry_run,
     )
+    prune_empty_slop_dir(plan.slop_dir, slop_root=plan.slop_root, dry_run=dry_run)
 
 
 def parse_teardown_args(argv: list[str], *, prog: str = "slop teardown") -> argparse.Namespace:
@@ -140,19 +150,34 @@ def parse_teardown_args(argv: list[str], *, prog: str = "slop teardown") -> argp
         default="worktrees",
         help="worktree directory name (default: worktrees)",
     )
+    parser.add_argument(
+        "--slop-name",
+        default="slop",
+        help="slop tree directory name (default: slop)",
+    )
     return parser.parse_args(argv)
 
 
 def run_teardown(argv: list[str], *, prog: str = "slop teardown") -> int:
     args = parse_teardown_args(argv, prog=prog)
     try:
-        plan = plan_teardown(base_branch=args.base, worktrees_name=args.worktrees_name)
+        plan = plan_teardown(
+            base_branch=args.base,
+            worktrees_name=args.worktrees_name,
+            slop_name=args.slop_name,
+        )
         status = worktree_status(plan.repo_root)
         validate_no_tracked_changes(status)
         if status.untracked:
             if not args.slop_untracked:
                 raise SlopError(UNTRACKED_FILES_MESSAGE)
-            move_args = ["--untracked"]
+            move_args = [
+                "--untracked",
+                "--worktrees-name",
+                args.worktrees_name,
+                "--slop-name",
+                args.slop_name,
+            ]
             if args.dry_run:
                 move_args.append("--dry-run")
             move_result = run_move(move_args, prog=f"{prog} mv")

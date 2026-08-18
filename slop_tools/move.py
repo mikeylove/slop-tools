@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .errors import SlopError
 from .git import git_toplevel
-from .paths import ensure_child, named_ancestor
+from .paths import ensure_child, named_ancestor, prune_empty_dirs
 from .status import untracked_paths
 from .workspaces import managed_workspace_for_repo
 
@@ -116,20 +116,7 @@ def move(plan: MovePlan, *, dry_run: bool = False, force: bool = False) -> None:
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.move(str(plan.source), str(destination))
-    _prune_empty_parents(plan.source.parent, stop_at=plan.worktrees_root)
-
-
-def _prune_empty_parents(path: Path, *, stop_at: Path | None) -> None:
-    if stop_at is None:
-        return
-
-    current = path
-    while current != stop_at and current != current.parent:
-        try:
-            current.rmdir()
-        except OSError:
-            return
-        current = current.parent
+    prune_empty_dirs(plan.source.parent, stop_at=plan.worktrees_root)
 
 
 def parse_move_args(argv: list[str], *, prog: str = "slop mv") -> argparse.Namespace:

@@ -40,6 +40,19 @@
         "Both files are in the managed slop tree at container/slop/demo-repo/marker-colors/ preserving their relative paths",
         "The worktree is still a valid git worktree on marker-colors with a clean status"
       ]
+    },
+    {
+      "id": 3,
+      "name": "init-with-day-one-dev-doc",
+      "prompt": "I'm working in <container>/demo-repo. Set up a worktree for a new branch called speech-refactor based on main, and start a design-notes doc I can scribble in while I work — it's dev-only and must never end up committed on the branch.",
+      "expected_output": "Worktree for new branch speech-refactor at <container>/worktrees/demo-repo/speech-refactor via `slop init speech-refactor main`, which pre-creates <container>/slop/demo-repo/speech-refactor; the notes doc is created inside that slop dir (not inside the worktree), so the worktree stays clean.",
+      "files": [],
+      "assertions": [
+        "A git worktree checked out to branch speech-refactor exists at container/worktrees/demo-repo/speech-refactor",
+        "A notes/design doc file exists under container/slop/demo-repo/speech-refactor/",
+        "No notes/design doc file exists inside the worktree, and the worktree has a clean git status",
+        "The primary checkout is untouched: still on main with a clean status"
+      ]
     }
   ]
 }

@@ -14,6 +14,7 @@ from .git import (
     run_git,
     validate_branch_name,
 )
+from .lifecycle import slop_dir_note
 from .workspaces import layout_for_repo
 
 
@@ -26,6 +27,7 @@ class OpenPlan:
     source_ref: str
     create_branch: bool
     target: Path
+    slop_dir: Path
 
 
 def _local_branch_from_remote_ref(ref: str) -> str | None:
@@ -40,6 +42,7 @@ def plan_open(
     *,
     cwd: str | Path | None = None,
     worktrees_name: str = "worktrees",
+    slop_name: str = "slop",
 ) -> OpenPlan:
     start = Path.cwd() if cwd is None else Path(cwd).expanduser()
     repo_root = git_toplevel(start.resolve())
@@ -60,8 +63,9 @@ def plan_open(
         source_ref = branch
         create_branch = True
 
-    layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
+    layout = layout_for_repo(repo_root, worktrees_name=worktrees_name, slop_name=slop_name)
     target = layout.ensure_worktree_path_available(local_branch)
+    slop_dir = layout.ensure_slop_path_usable(local_branch)
 
     return OpenPlan(
         repo_root=repo_root,
@@ -71,6 +75,7 @@ def plan_open(
         source_ref=source_ref,
         create_branch=create_branch,
         target=target,
+        slop_dir=slop_dir,
     )
 
 
@@ -102,6 +107,7 @@ def open_worktree(
         )
     else:
         run_git(plan.repo_root, ["worktree", "add", str(plan.target), plan.branch])
+    plan.slop_dir.mkdir(parents=True, exist_ok=True)
 
 
 def parse_open_args(argv: list[str], *, prog: str = "slop open") -> argparse.Namespace:
@@ -121,6 +127,11 @@ def parse_open_args(argv: list[str], *, prog: str = "slop open") -> argparse.Nam
         default="worktrees",
         help="worktree directory name (default: worktrees)",
     )
+    parser.add_argument(
+        "--slop-name",
+        default="slop",
+        help="slop tree directory name (default: slop)",
+    )
     return parser.parse_args(argv)
 
 
@@ -132,8 +143,12 @@ def run_open(argv: list[str], *, prog: str = "slop open") -> int:
             repo_root = git_toplevel(start.resolve())
             if repo_root is not None:
                 run_git(repo_root, ["fetch", "--quiet"], check=False, quiet=True)
-        plan = plan_open(args.branch, worktrees_name=args.worktrees_name)
-        print(f"{plan.branch}\n{plan.target}")
+        plan = plan_open(
+            args.branch,
+            worktrees_name=args.worktrees_name,
+            slop_name=args.slop_name,
+        )
+        print(f"{plan.branch}\n{plan.target}\n{plan.slop_dir}{slop_dir_note(plan.slop_dir)}")
         open_worktree(plan, dry_run=args.dry_run, fetch=False)
     except SlopError as exc:
         print(f"{prog}: {exc}", file=sys.stderr)

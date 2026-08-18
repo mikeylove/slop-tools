@@ -21,6 +21,12 @@ Branch names containing `/` become nested directories
 container from the current directory, so always `cd` into the repo or worktree
 you want to act on before running `slop`.
 
+`init` and `open` create the branch's slop dir alongside the worktree and
+print its path — dev-only notes and scratch files can be written straight
+into it from the start, no manual path mapping or `mkdir` needed. `close` and
+`teardown` prune the slop dir again if it is still empty, so a surviving slop
+dir always means something was preserved there.
+
 Prefer `slop` over raw `git worktree` commands whenever this layout applies:
 hand-rolled worktrees end up in unpredictable places and lose the matching
 slop tree.
@@ -98,6 +104,7 @@ Start a feature off `main` and enter its worktree:
 cd /projects/acme/example-repo
 slop init ipc-updates main
 cd ../worktrees/example-repo/ipc-updates
+# dev notes can go straight to /projects/acme/slop/example-repo/ipc-updates/
 ```
 
 Review a PR branch, then clean up but keep the branch and your notes:

@@ -16,6 +16,20 @@ class WorkspaceLayout:
     def worktree_path(self, branch: str) -> Path:
         return self.worktrees_root / self.repo_name / branch_path(branch)
 
+    def slop_path(self, branch: str) -> Path:
+        return self.slop_root / self.repo_name / branch_path(branch)
+
+    def ensure_slop_path_usable(self, branch: str) -> Path:
+        target = self.slop_path(branch)
+        current = target
+        while True:
+            if current.exists() and not current.is_dir():
+                raise SlopError(f"slop path is not a directory: {current}")
+            if current == self.slop_root or current == current.parent:
+                break
+            current = current.parent
+        return target
+
     def ensure_worktree_path_available(self, branch: str) -> Path:
         target = self.worktree_path(branch)
         if target.exists():
@@ -56,6 +70,10 @@ class ManagedWorkspace:
     @property
     def key(self) -> Path:
         return Path(self.repo_name) / branch_path(self.branch)
+
+    @property
+    def slop_dir(self) -> Path:
+        return self.slop_root / self.key
 
 
 def branch_path(branch: str) -> Path:

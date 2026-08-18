@@ -69,6 +69,13 @@ When run from:
 /projects/acme/worktrees/example-repo/ipc-updates
 ```
 
+It also creates the matching slop directory, ready to hold dev-only files from
+the start:
+
+```text
+/projects/acme/slop/example-repo/ipc-updates
+```
+
 ### Finish Owned Work
 
 Tear down an owned worktree only after it has landed:
@@ -79,7 +86,9 @@ slop teardown
 
 `slop teardown` refuses to run unless the current worktree has no tracked
 changes, no untracked files, and its local branch is already merged into local
-`main`. It removes the worktree and deletes the local branch.
+`main`. It removes the worktree and deletes the local branch. If the matching
+slop directory is still empty, it is pruned too, so the slop tree only keeps
+branches that actually preserved something.
 
 To move untracked files to `slop` as part of teardown:
 
@@ -109,6 +118,8 @@ For a remote-tracking branch, `slop open` creates a local tracking branch.
 /projects/acme/worktrees/example-repo/feature-branch
 ```
 
+Like `slop init`, it also creates the matching slop directory.
+
 ### Close Existing Work
 
 Close a review or disposable worktree without requiring a merge check and
@@ -128,6 +139,9 @@ slop close --discard-untracked
 
 `--slop-untracked` preserves untracked files in the matching `slop` tree.
 `--discard-untracked` deletes untracked files before removing the worktree.
+
+Like `slop teardown`, `slop close` prunes the matching slop directory when it
+is still empty.
 
 ### Preserve Artifacts
 
@@ -151,10 +165,10 @@ slop mv --untracked docs/extra-note.md
 
 ### `slop init`
 
-Create a new local branch and matching worktree.
+Create a new local branch, matching worktree, and matching slop directory.
 
 ```sh
-slop init [-n] [--no-fetch] [--worktrees-name NAME] <new-branch> [source-branch]
+slop init [-n] [--no-fetch] [--worktrees-name NAME] [--slop-name NAME] <new-branch> [source-branch]
 ```
 
 `slop init` runs `git fetch` best-effort, then creates the new branch with:
@@ -163,12 +177,18 @@ slop init [-n] [--no-fetch] [--worktrees-name NAME] <new-branch> [source-branch]
 git worktree add -b <new-branch> <target-path> <source-branch>
 ```
 
+It then creates `slop/<repo>/<branch>` so dev-only files can be dropped there
+immediately. If that path already exists with files (for example from an
+earlier branch with the same name), init reports it and leaves the contents
+alone.
+
 ### `slop open`
 
-Open an existing local or remote-tracking branch in a matching worktree.
+Open an existing local or remote-tracking branch in a matching worktree,
+creating the matching slop directory as well.
 
 ```sh
-slop open [-n] [--no-fetch] [--worktrees-name NAME] <branch-or-remote>
+slop open [-n] [--no-fetch] [--worktrees-name NAME] [--slop-name NAME] <branch-or-remote>
 ```
 
 For a local branch, it runs:
@@ -191,23 +211,25 @@ worktree parent.
 Close a managed worktree without deleting its branch.
 
 ```sh
-slop close [-n] [--slop-untracked | --discard-untracked] [--worktrees-name NAME]
+slop close [-n] [--slop-untracked | --discard-untracked] [--worktrees-name NAME] [--slop-name NAME]
 ```
 
 Tracked changes always block close. Untracked files block close unless one of
-the explicit untracked flags is provided.
+the explicit untracked flags is provided. After removing the worktree, an
+empty matching slop directory is pruned along with any empty parents.
 
 ### `slop teardown`
 
 Remove a merged managed worktree and delete its local branch.
 
 ```sh
-slop teardown [-n] [--base BRANCH] [--slop-untracked] [--no-fetch] [--worktrees-name NAME]
+slop teardown [-n] [--base BRANCH] [--slop-untracked] [--no-fetch] [--worktrees-name NAME] [--slop-name NAME]
 ```
 
 `slop teardown` runs `git fetch --prune` best-effort, but it does not pull,
 merge, or update the base branch. If local `main` or another base is stale,
-update it explicitly and rerun teardown.
+update it explicitly and rerun teardown. Like `slop close`, it prunes an
+empty matching slop directory after removing the worktree.
 
 ### `slop mv`
 

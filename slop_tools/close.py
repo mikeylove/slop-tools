@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .errors import SlopError
 from .git import current_branch, git_toplevel, separate_worktree
-from .lifecycle import RemoveWorktreePlan, remove_worktree
+from .lifecycle import RemoveWorktreePlan, prune_empty_slop_dir, remove_worktree
 from .move import run_move
 from .status import validate_clean_worktree, validate_no_tracked_changes, worktree_status
 from .workspaces import managed_workspace_for_repo
@@ -22,21 +22,28 @@ class ClosePlan:
     repo_root: Path
     control_repo: Path
     worktrees_root: Path
+    slop_root: Path
     repo_name: str
     branch: str
+    slop_dir: Path
 
 
 def plan_close(
     *,
     cwd: str | Path | None = None,
     worktrees_name: str = "worktrees",
+    slop_name: str = "slop",
 ) -> ClosePlan:
     start = Path.cwd() if cwd is None else Path(cwd).expanduser()
     repo_root = git_toplevel(start.resolve())
     if repo_root is None:
         raise SlopError(f"{start} is not inside a Git repository")
 
-    workspace = managed_workspace_for_repo(repo_root, worktrees_name=worktrees_name)
+    workspace = managed_workspace_for_repo(
+        repo_root,
+        worktrees_name=worktrees_name,
+        slop_name=slop_name,
+    )
     if workspace is None:
         raise SlopError(f"{repo_root} is not inside a {worktrees_name} directory")
 
@@ -56,8 +63,10 @@ def plan_close(
         repo_root=repo_root,
         control_repo=control_repo,
         worktrees_root=workspace.worktrees_root,
+        slop_root=workspace.slop_root,
         repo_name=workspace.repo_name,
         branch=branch,
+        slop_dir=workspace.slop_dir,
     )
 
 
@@ -84,6 +93,7 @@ def remove_close_worktree(
         ),
         dry_run=dry_run,
     )
+    prune_empty_slop_dir(plan.slop_dir, slop_root=plan.slop_root, dry_run=dry_run)
 
 
 def parse_close_args(argv: list[str], *, prog: str = "slop close") -> argparse.Namespace:
@@ -107,6 +117,11 @@ def parse_close_args(argv: list[str], *, prog: str = "slop close") -> argparse.N
         default="worktrees",
         help="worktree directory name (default: worktrees)",
     )
+    parser.add_argument(
+        "--slop-name",
+        default="slop",
+        help="slop tree directory name (default: slop)",
+    )
     return parser.parse_args(argv)
 
 
@@ -115,7 +130,7 @@ def run_close(argv: list[str], *, prog: str = "slop close") -> int:
     try:
         if args.slop_untracked and args.discard_untracked:
             raise SlopError("choose only one of `--slop-untracked` or `--discard-untracked`")
-        plan = plan_close(worktrees_name=args.worktrees_name)
+        plan = plan_close(worktrees_name=args.worktrees_name, slop_name=args.slop_name)
         status = worktree_status(plan.repo_root)
         validate_no_tracked_changes(status)
         if status.untracked:
@@ -124,7 +139,13 @@ def run_close(argv: list[str], *, prog: str = "slop close") -> int:
                 return 0
             if not args.slop_untracked:
                 raise SlopError(UNTRACKED_CLOSE_MESSAGE)
-            move_args = ["--untracked"]
+            move_args = [
+                "--untracked",
+                "--worktrees-name",
+                args.worktrees_name,
+                "--slop-name",
+                args.slop_name,
+            ]
             if args.dry_run:
                 move_args.append("--dry-run")
             move_result = run_move(move_args, prog=f"{prog} mv")

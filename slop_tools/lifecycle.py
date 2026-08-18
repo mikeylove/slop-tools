@@ -5,6 +5,23 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .git import run_git
+from .paths import prune_empty_dirs
+
+
+def slop_dir_note(slop_dir: Path) -> str:
+    if slop_dir.is_dir() and any(slop_dir.iterdir()):
+        return " (existing files)"
+    return ""
+
+
+def prune_empty_slop_dir(slop_dir: Path, *, slop_root: Path, dry_run: bool = False) -> None:
+    if not slop_dir.is_dir() or any(slop_dir.iterdir()):
+        return
+
+    print(f"remove empty slop dir {slop_dir}")
+    if dry_run:
+        return
+    prune_empty_dirs(slop_dir, stop_at=slop_root)
 
 
 @dataclass(frozen=True)

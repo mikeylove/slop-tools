@@ -14,6 +14,7 @@ from .git import (
     run_git,
     validate_branch_name,
 )
+from .lifecycle import slop_dir_note
 from .workspaces import layout_for_repo
 
 
@@ -25,6 +26,7 @@ class InitPlan:
     new_branch: str
     source_branch: str
     target: Path
+    slop_dir: Path
 
 
 def plan_init(
@@ -33,6 +35,7 @@ def plan_init(
     *,
     cwd: str | Path | None = None,
     worktrees_name: str = "worktrees",
+    slop_name: str = "slop",
 ) -> InitPlan:
     start = Path.cwd() if cwd is None else Path(cwd).expanduser()
     repo_root = git_toplevel(start.resolve())
@@ -52,8 +55,9 @@ def plan_init(
     if not local_branch_exists(repo_root, source_branch):
         raise SlopError(f"source branch must be a local branch: {source_branch}")
 
-    layout = layout_for_repo(repo_root, worktrees_name=worktrees_name)
+    layout = layout_for_repo(repo_root, worktrees_name=worktrees_name, slop_name=slop_name)
     target = layout.ensure_worktree_path_available(new_branch)
+    slop_dir = layout.ensure_slop_path_usable(new_branch)
 
     return InitPlan(
         repo_root=repo_root,
@@ -62,6 +66,7 @@ def plan_init(
         new_branch=new_branch,
         source_branch=source_branch,
         target=target,
+        slop_dir=slop_dir,
     )
 
 
@@ -89,6 +94,7 @@ def init_worktree(
             plan.source_branch,
         ],
     )
+    plan.slop_dir.mkdir(parents=True, exist_ok=True)
 
 
 def parse_init_args(argv: list[str], *, prog: str = "slop init") -> argparse.Namespace:
@@ -113,6 +119,11 @@ def parse_init_args(argv: list[str], *, prog: str = "slop init") -> argparse.Nam
         default="worktrees",
         help="worktree directory name (default: worktrees)",
     )
+    parser.add_argument(
+        "--slop-name",
+        default="slop",
+        help="slop tree directory name (default: slop)",
+    )
     return parser.parse_args(argv)
 
 
@@ -123,10 +134,12 @@ def run_init(argv: list[str], *, prog: str = "slop init") -> int:
             args.new_branch,
             args.source_branch,
             worktrees_name=args.worktrees_name,
+            slop_name=args.slop_name,
         )
         print(
             f"{plan.source_branch} -> {plan.new_branch}\n"
-            f"{plan.target}"
+            f"{plan.target}\n"
+            f"{plan.slop_dir}{slop_dir_note(plan.slop_dir)}"
         )
         init_worktree(plan, dry_run=args.dry_run, fetch=not args.no_fetch)
     except SlopError as exc:

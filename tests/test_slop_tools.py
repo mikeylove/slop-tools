@@ -232,6 +232,42 @@ class SlopTests(unittest.TestCase):
             branch = git(plan.target, "branch", "--show-current").stdout.strip()
             self.assertEqual(branch, "ipc-updates")
 
+    def test_init_creates_matching_slop_dir(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+
+            plan = plan_init("ipc-updates", "main", cwd=repo)
+            init_worktree(plan, fetch=False)
+
+            slop_dir = root / "projects" / "org" / "slop" / "example-repo" / "ipc-updates"
+            self.assertEqual(plan.slop_dir, slop_dir.resolve())
+            self.assertTrue(slop_dir.is_dir())
+
+    def test_init_dry_run_does_not_create_slop_dir(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+
+            plan = plan_init("ipc-updates", "main", cwd=repo)
+            init_worktree(plan, dry_run=True, fetch=False)
+
+            self.assertFalse(plan.slop_dir.exists())
+
+    def test_init_refuses_slop_path_blocked_by_file(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+            blocker = root / "projects" / "org" / "slop" / "example-repo" / "ipc-updates"
+            blocker.parent.mkdir(parents=True)
+            blocker.write_text("not a directory\n")
+
+            with self.assertRaises(SlopError):
+                plan_init("ipc-updates", "main", cwd=repo)
+
     def test_init_requires_local_source_branch(self):
         with TemporaryDirectory() as tmp:
             repo = Path(tmp) / "repo"
@@ -279,6 +315,21 @@ class SlopTests(unittest.TestCase):
             self.assertTrue((plan.target / ".git").exists())
             branch = git(plan.target, "branch", "--show-current").stdout.strip()
             self.assertEqual(branch, "feature")
+
+    def test_open_creates_matching_slop_dir(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            repo = root / "projects" / "org" / "example-repo"
+            init_repo(repo)
+            git(repo, "checkout", "-b", "feature")
+            git(repo, "checkout", "main")
+
+            plan = plan_open("feature", cwd=repo)
+            open_worktree(plan, fetch=False)
+
+            slop_dir = root / "projects" / "org" / "slop" / "example-repo" / "feature"
+            self.assertEqual(plan.slop_dir, slop_dir.resolve())
+            self.assertTrue(slop_dir.is_dir())
 
     def test_plans_open_remote_tracking_branch(self):
         with TemporaryDirectory() as tmp:
@@ -479,6 +530,33 @@ class SlopTests(unittest.TestCase):
             self.assertFalse(worktree.exists())
             self.assertEqual(slopped.read_text(), "temporary\n")
 
+    def test_close_prunes_empty_slop_dir(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            slop_dir = root / "projects" / "org" / "slop" / "example-repo" / "feature"
+            slop_dir.mkdir(parents=True)
+
+            with chdir(worktree):
+                result = run_close([])
+
+            self.assertEqual(result, 0)
+            self.assertFalse((root / "projects" / "org" / "slop" / "example-repo").exists())
+
+    def test_close_keeps_slop_dir_with_files(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root, merged=False)
+            slop_dir = root / "projects" / "org" / "slop" / "example-repo" / "feature"
+            slop_dir.mkdir(parents=True)
+            (slop_dir / "notes.md").write_text("keep me\n")
+
+            with chdir(worktree):
+                result = run_close([])
+
+            self.assertEqual(result, 0)
+            self.assertEqual((slop_dir / "notes.md").read_text(), "keep me\n")
+
     def test_close_can_discard_untracked_before_removing_worktree(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -546,6 +624,32 @@ class SlopTests(unittest.TestCase):
                 check=False,
             )
             self.assertNotEqual(branch.returncode, 0)
+
+    def test_teardown_prunes_empty_slop_dir(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root)
+            slop_dir = root / "projects" / "org" / "slop" / "example-repo" / "feature"
+            slop_dir.mkdir(parents=True)
+
+            with chdir(worktree):
+                result = run_teardown(["--no-fetch"])
+
+            self.assertEqual(result, 0)
+            self.assertFalse((root / "projects" / "org" / "slop" / "example-repo").exists())
+
+    def test_teardown_keeps_slop_dir_with_slopped_files(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _, worktree = init_repo_with_teardown_worktree(root)
+            (worktree / "notes.md").write_text("temporary\n")
+
+            with chdir(worktree):
+                result = run_teardown(["--no-fetch", "--slop-untracked"])
+
+            slopped = root / "projects" / "org" / "slop" / "example-repo" / "feature" / "notes.md"
+            self.assertEqual(result, 0)
+            self.assertEqual(slopped.read_text(), "temporary\n")
 
     def test_teardown_refuses_unmerged_branch(self):
         with TemporaryDirectory() as tmp:
